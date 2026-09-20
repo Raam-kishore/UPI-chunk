@@ -1,0 +1,465 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Transaction Split Planner</title>
+
+<style>
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #f3f4f6;
+        color: #111827;
+    }
+
+    .container {
+        max-width: 700px;
+        margin: 50px auto;
+        padding: 20px;
+    }
+
+    .card {
+        background: white;
+        padding: 30px;
+        border-radius: 18px;
+        box-shadow: 0 10px 30px rgba(0,0,0,.08);
+    }
+
+    h1 {
+        margin-top: 0;
+    }
+
+    .subtitle {
+        color: #6b7280;
+        line-height: 1.5;
+    }
+
+    label {
+        display: block;
+        margin-top: 25px;
+        margin-bottom: 8px;
+        font-weight: bold;
+    }
+
+    input {
+        width: 100%;
+        padding: 14px;
+        border: 1px solid #d1d5db;
+        border-radius: 9px;
+        font-size: 17px;
+    }
+
+    button {
+        width: 100%;
+        margin-top: 20px;
+        padding: 14px;
+        border: 0;
+        border-radius: 9px;
+        background: #2563eb;
+        color: white;
+        font-size: 17px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    button:hover {
+        background: #1d4ed8;
+    }
+
+    .summary {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-top: 25px;
+    }
+
+    .box {
+        background: #f9fafb;
+        padding: 18px;
+        border-radius: 10px;
+        text-align: center;
+    }
+
+    .box span {
+        display: block;
+        color: #6b7280;
+        font-size: 14px;
+    }
+
+    .box strong {
+        display: block;
+        margin-top: 6px;
+        font-size: 22px;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 25px;
+    }
+
+    th, td {
+        padding: 13px;
+        border-bottom: 1px solid #e5e7eb;
+        text-align: left;
+    }
+
+    th {
+        background: #f3f4f6;
+    }
+
+    .total {
+        font-weight: bold;
+        background: #eff6ff;
+    }
+
+    .message {
+        margin-top: 20px;
+        padding: 14px;
+        border-radius: 8px;
+    }
+
+    .error {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .success {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    @media(max-width:600px) {
+        .summary {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<div class="card">
+
+    <h1>Transaction Split Planner</h1>
+
+    <p class="subtitle">
+        Enter a total amount and generate a varied split.
+        Every individual amount will be strictly below ₹2,000,
+        and the sum will equal the total exactly.
+    </p>
+
+    <label for="totalAmount">
+        Total Amount (₹)
+    </label>
+
+    <input
+        type="number"
+        id="totalAmount"
+        min="1"
+        step="1"
+        placeholder="Example: 5000"
+    >
+
+    <button onclick="generateSplit()">
+        Generate Split
+    </button>
+
+    <div id="message"></div>
+
+    <div id="results" style="display:none;">
+
+        <div class="summary">
+
+            <div class="box">
+                <span>Total Amount</span>
+                <strong id="totalDisplay">₹0</strong>
+            </div>
+
+            <div class="box">
+                <span>Number of Transactions</span>
+                <strong id="countDisplay">0</strong>
+            </div>
+
+        </div>
+
+        <table>
+
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Amount</th>
+                </tr>
+            </thead>
+
+            <tbody id="transactionList"></tbody>
+
+            <tfoot>
+                <tr class="total">
+                    <td>Total</td>
+                    <td id="sumDisplay">₹0</td>
+                </tr>
+            </tfoot>
+
+        </table>
+
+    </div>
+
+</div>
+
+</div>
+
+
+<script>
+
+const MAX_TRANSACTION = 1999;
+
+
+// Format Indian currency
+function formatMoney(amount) {
+
+    return new Intl.NumberFormat("en-IN", {
+        style: "currency",
+        currency: "INR",
+        maximumFractionDigits: 0
+    }).format(amount);
+
+}
+
+
+// Generate varied amounts.
+// Every amount is between ₹1 and ₹1,999.
+function generateAmounts(total) {
+
+    const minimumTransactions =
+        Math.ceil(total / MAX_TRANSACTION);
+
+    const transactions = [];
+
+    let remaining = total;
+
+    /*
+     * Start with the minimum number of
+     * transactions required.
+     */
+    while (remaining > 0) {
+
+        const transactionsLeft =
+            Math.ceil(
+                remaining / MAX_TRANSACTION
+            );
+
+        const minimumForCurrent =
+            Math.max(
+                1,
+                remaining -
+                (transactionsLeft - 1) *
+                MAX_TRANSACTION
+            );
+
+        const maximumForCurrent =
+            Math.min(
+                MAX_TRANSACTION,
+                remaining -
+                (transactionsLeft - 1)
+            );
+
+        /*
+         * Choose a random value inside the
+         * valid range.
+         */
+        let amount;
+
+        if (
+            maximumForCurrent ===
+            minimumForCurrent
+        ) {
+
+            amount = minimumForCurrent;
+
+        } else {
+
+            amount =
+                Math.floor(
+                    Math.random() *
+                    (
+                        maximumForCurrent -
+                        minimumForCurrent +
+                        1
+                    )
+                ) +
+                minimumForCurrent;
+        }
+
+        transactions.push(amount);
+
+        remaining -= amount;
+    }
+
+
+    /*
+     * Shuffle the transactions so the
+     * larger amounts aren't always first.
+     */
+    for (
+        let i = transactions.length - 1;
+        i > 0;
+        i--
+    ) {
+
+        const j =
+            Math.floor(
+                Math.random() * (i + 1)
+            );
+
+        [
+            transactions[i],
+            transactions[j]
+        ] = [
+            transactions[j],
+            transactions[i]
+        ];
+    }
+
+    return transactions;
+}
+
+
+function generateSplit() {
+
+    const input =
+        document.getElementById("totalAmount");
+
+    const total =
+        Number(input.value);
+
+    const message =
+        document.getElementById("message");
+
+    const results =
+        document.getElementById("results");
+
+    const list =
+        document.getElementById("transactionList");
+
+
+    message.innerHTML = "";
+    list.innerHTML = "";
+
+
+    if (!Number.isInteger(total) || total <= 0) {
+
+        message.innerHTML = `
+            <div class="message error">
+                Please enter a valid positive whole amount.
+            </div>
+        `;
+
+        results.style.display = "none";
+
+        return;
+    }
+
+
+    const transactions =
+        generateAmounts(total);
+
+
+    // Verify every transaction
+    const validTransactions =
+        transactions.every(
+            amount =>
+                amount > 0 &&
+                amount < 2000
+        );
+
+
+    // Verify exact total
+    const calculatedTotal =
+        transactions.reduce(
+            (sum, amount) =>
+                sum + amount,
+            0
+        );
+
+
+    if (
+        !validTransactions ||
+        calculatedTotal !== total
+    ) {
+
+        message.innerHTML = `
+            <div class="message error">
+                Could not generate a valid split.
+                Please try again.
+            </div>
+        `;
+
+        results.style.display = "none";
+
+        return;
+    }
+
+
+    // Display summary
+
+    document.getElementById(
+        "totalDisplay"
+    ).textContent =
+        formatMoney(total);
+
+    document.getElementById(
+        "countDisplay"
+    ).textContent =
+        transactions.length;
+
+    document.getElementById(
+        "sumDisplay"
+    ).textContent =
+        formatMoney(calculatedTotal);
+
+
+    // Display transactions
+
+    transactions.forEach(
+        (amount, index) => {
+
+            const row =
+                document.createElement("tr");
+
+            row.innerHTML = `
+                <td>${index + 1}</td>
+                <td>${formatMoney(amount)}</td>
+            `;
+
+            list.appendChild(row);
+        }
+    );
+
+
+    results.style.display = "block";
+
+
+    message.innerHTML = `
+        <div class="message success">
+            Split generated successfully.
+            Every amount is below ₹2,000 and the total
+            matches exactly.
+        </div>
+    `;
+}
+
+</script>
+
+</body>
+</html>
+```
